@@ -1,6 +1,6 @@
 import {addClass} from 'handsontable/helpers/dom/element';
 import {clone, extend} from 'handsontable/helpers/object';
-import {arrayFilter, arrayMap, arrayEach} from 'handsontable/helpers/array';
+import {arrayMap, arrayEach} from 'handsontable/helpers/array';
 import {isKey} from 'handsontable/helpers/unicode';
 import {partial} from 'handsontable/helpers/function';
 import * as C from 'handsontable/i18n/constants';
@@ -219,12 +219,19 @@ class MultipleSelectUI extends BaseUI {
    */
   onInput(event) {
     let value = event.target.value.toLowerCase();
-    let filteredItems;
+    let filteredItems = [];
 
     if (value === '') {
       filteredItems = [...this.items];
     } else {
-      filteredItems = arrayFilter(this.items, (item) => (item.value + '').toLowerCase().indexOf(value) >= 0);
+      arrayEach(this.items, (item) => {
+        if ((item.value + '').toLowerCase().indexOf(value) >= 0) {
+          item.checked = true;
+          filteredItems.push(item);
+        } else {
+          item.checked = false;
+        }
+      });
     }
     this.itemsBox.loadData(filteredItems);
   }
