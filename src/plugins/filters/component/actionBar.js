@@ -1,5 +1,5 @@
-import {addClass} from 'handsontable/helpers/dom/element';
-import {arrayEach} from 'handsontable/helpers/array';
+import { addClass } from 'handsontable/helpers/dom/element';
+import { arrayEach } from 'handsontable/helpers/array';
 import * as C from 'handsontable/i18n/constants';
 import BaseComponent from './_base';
 import InputUI from './../ui/input';
@@ -64,10 +64,12 @@ class ActionBarComponent extends BaseComponent {
       isCommand: false,
       disableSelection: true,
       hidden: () => this.isHidden(),
-      renderer: (hot, wrapper, row, col, prop, value) => {
+      renderer: (hot, wrapper) => {
         addClass(wrapper.parentNode, 'htFiltersMenuActionBar');
 
-        arrayEach(this.elements, (ui) => wrapper.appendChild(ui.element));
+        if (!wrapper.parentNode.hasAttribute('ghost-table')) {
+          arrayEach(this.elements, ui => wrapper.appendChild(ui.element));
+        }
 
         return wrapper;
       }

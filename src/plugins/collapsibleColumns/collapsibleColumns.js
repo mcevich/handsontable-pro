@@ -1,15 +1,15 @@
-import {objectEach} from 'handsontable/helpers/object';
-import {arrayEach} from 'handsontable/helpers/array';
-import {rangeEach} from 'handsontable/helpers/number';
-import {warn} from 'handsontable/helpers/console';
+import { objectEach } from 'handsontable/helpers/object';
+import { arrayEach } from 'handsontable/helpers/array';
+import { rangeEach } from 'handsontable/helpers/number';
+import { warn } from 'handsontable/helpers/console';
 import {
   addClass,
   hasClass,
   fastInnerText
 } from 'handsontable/helpers/dom/element';
 import EventManager from 'handsontable/eventManager';
-import {registerPlugin} from 'handsontable/plugins';
-import {stopImmediatePropagation} from 'handsontable/helpers/dom/event';
+import { registerPlugin } from 'handsontable/plugins';
+import { stopImmediatePropagation } from 'handsontable/helpers/dom/event';
 import BasePlugin from 'handsontable/plugins/_base';
 
 /**
@@ -18,90 +18,107 @@ import BasePlugin from 'handsontable/plugins/_base';
  * @dependencies NestedHeaders HiddenColumns
  *
  * @description
- * The CollapsibleColumns plugin allows collapsing of columns, covered by a header with the `colspan` property defined.
+ * The {@link CollapsibleColumns} plugin allows collapsing of columns, covered by a header with the `colspan` property defined.
  *
  * Clicking the "collapse/expand" button collapses (or expands) all "child" headers except the first one.
  *
- * Setting the `collapsibleColumns` property to `true` will display a "collapse/expand" button in every header with a defined
- * `colspan` property.
+ * Setting the {@link Options#collapsibleColumns} property to `true` will display a "collapse/expand" button in every header
+ * with a defined `colspan` property.
  *
- * To limit this functionality to a smaller group of headers, define the `collapsibleColumns` property as an array of objects, as in
- * the example below.
+ * To limit this functionality to a smaller group of headers, define the `collapsibleColumns` property as an array
+ * of objects, as in the example below.
+ *
  * @example
  * ```js
- * ...
- *  collapsibleColumns: [
- *    {row: -4, col: 1, collapsible: true},
- *    {row: -3, col: 5, collapsible: true}
- *  ]
- * ...
- * ```
- * ```js
- * ...
- *  collapsibleColumns: true
- * ...
+ * const container = document.getElementById('example');
+ * const hot = new Handsontable(container, {
+ *   data: generateDataObj(),
+ *   colHeaders: true,
+ *   rowHeaders: true,
+ *   // enable plugin
+ *   collapsibleColumns: true,
+ * });
+ *
+ * // or
+ * const hot = new Handsontable(container, {
+ *   data: generateDataObj(),
+ *   colHeaders: true,
+ *   rowHeaders: true,
+ *   // enable and configure which columns can be collapsed
+ *   collapsibleColumns: [
+ *     {row: -4, col: 1, collapsible: true},
+ *     {row: -3, col: 5, collapsible: true}
+ *   ],
+ * });
  * ```
  */
 class CollapsibleColumns extends BasePlugin {
 
   constructor(hotInstance) {
     super(hotInstance);
-
     /**
      * Cached plugin settings.
      *
+     * @private
      * @type {Boolean|Array}
      */
     this.settings = null;
     /**
      * Object listing headers with buttons enabled.
      *
+     * @private
      * @type {Object}
      */
     this.buttonEnabledList = {};
     /**
      * Cached reference to the HiddenColumns plugin.
      *
+     * @private
      * @type {Object}
      */
     this.hiddenColumnsPlugin = null;
     /**
      * Cached reference to the NestedHeaders plugin.
      *
+     * @private
      * @type {Object}
      */
     this.nestedHeadersPlugin = null;
     /**
      * Object listing the currently collapsed sections.
      *
+     * @private
      * @type {Object}
      */
     this.collapsedSections = {};
     /**
      * Number of column header levels.
      *
+     * @private
      * @type {Number}
      */
     this.columnHeaderLevelCount = null;
     /**
      * Event manager instance reference.
      *
+     * @private
      * @type {EventManager}
      */
     this.eventManager = null;
   }
 
   /**
-   * Check if the plugin is enabled.
+   * Checks if the plugin is enabled in the handsontable settings. This method is executed in {@link Hooks#beforeInit}
+   * hook and if it returns `true` than the {@link CollapsibleColumns#enablePlugin} method is called.
    *
-   * @returns {boolean}
+   * @returns {Boolean}
    */
   isEnabled() {
     return !!this.hot.getSettings().collapsibleColumns;
   }
 
   /**
-   * Enable the plugin.
+   * Enables the plugin functionality for this Handsontable instance.
    */
   enablePlugin() {
     if (this.enabled) {
@@ -130,7 +147,7 @@ class CollapsibleColumns extends BasePlugin {
   }
 
   /**
-   * Disable the plugin.
+   * Disables the plugin functionality for this Handsontable instance.
    */
   disablePlugin() {
     this.settings = null;
@@ -144,7 +161,7 @@ class CollapsibleColumns extends BasePlugin {
   }
 
   /**
-   * Clear the expand/collapse buttons.
+   * Clears the expand/collapse buttons.
    *
    * @private
    */
@@ -153,22 +170,22 @@ class CollapsibleColumns extends BasePlugin {
       return;
     }
 
-    let headerLevels = this.hot.view.wt.getSetting('columnHeaders').length;
-    let mainHeaders = this.hot.view.wt.wtTable.THEAD;
-    let topHeaders = this.hot.view.wt.wtOverlays.topOverlay.clone.wtTable.THEAD;
-    let topLeftCornerHeaders = this.hot.view.wt.wtOverlays.topLeftCornerOverlay ?
+    const headerLevels = this.hot.view.wt.getSetting('columnHeaders').length;
+    const mainHeaders = this.hot.view.wt.wtTable.THEAD;
+    const topHeaders = this.hot.view.wt.wtOverlays.topOverlay.clone.wtTable.THEAD;
+    const topLeftCornerHeaders = this.hot.view.wt.wtOverlays.topLeftCornerOverlay ?
       this.hot.view.wt.wtOverlays.topLeftCornerOverlay.clone.wtTable.THEAD : null;
 
-    let removeButton = function(button) {
+    const removeButton = function(button) {
       if (button) {
         button.parentNode.removeChild(button);
       }
     };
 
     rangeEach(0, headerLevels - 1, (i) => {
-      let masterLevel = mainHeaders.childNodes[i];
-      let topLevel = topHeaders.childNodes[i];
-      let topLeftCornerLevel = topLeftCornerHeaders ? topLeftCornerHeaders.childNodes[i] : null;
+      const masterLevel = mainHeaders.childNodes[i];
+      const topLevel = topHeaders.childNodes[i];
+      const topLeftCornerLevel = topLeftCornerHeaders ? topLeftCornerHeaders.childNodes[i] : null;
 
       rangeEach(0, masterLevel.childNodes.length - 1, (j) => {
         let button = masterLevel.childNodes[j].querySelector('.collapsibleIndicator');
@@ -191,7 +208,9 @@ class CollapsibleColumns extends BasePlugin {
   }
 
   /**
-   * Parse the plugin settings and create a button configuration array.
+   * Parses the plugin settings and create a button configuration array.
+   *
+   * @private
    */
   parseSettings() {
     objectEach(this.settings, (val) => {
@@ -205,21 +224,24 @@ class CollapsibleColumns extends BasePlugin {
   }
 
   /**
-   * Check if plugin dependencies are met.
+   * Checks if plugin dependencies are met.
    *
+   * @private
    * @returns {Boolean}
    */
   meetsDependencies() {
-    let settings = this.hot.getSettings();
+    const settings = this.hot.getSettings();
 
     return settings.nestedHeaders && settings.hiddenColumns;
   }
 
   /**
    * Checks if all the required dependencies are enabled.
+   *
+   * @private
    */
   checkDependencies() {
-    let settings = this.hot.getSettings();
+    const settings = this.hot.getSettings();
 
     if (this.meetsDependencies()) {
       return;
@@ -237,24 +259,25 @@ class CollapsibleColumns extends BasePlugin {
   /**
    * Generates the indicator element.
    *
-   * @param {Number} col Column index.
+   * @private
+   * @param {Number} column Column index.
    * @param {HTMLElement} TH TH Element.
    * @returns {HTMLElement}
    */
-  generateIndicator(col, TH) {
-    let TR = TH.parentNode;
-    let THEAD = TR.parentNode;
-    let row = ((-1) * THEAD.childNodes.length) + Array.prototype.indexOf.call(THEAD.childNodes, TR);
+  generateIndicator(column, TH) {
+    const TR = TH.parentNode;
+    const THEAD = TR.parentNode;
+    const row = ((-1) * THEAD.childNodes.length) + Array.prototype.indexOf.call(THEAD.childNodes, TR);
 
-    if (Object.keys(this.buttonEnabledList).length > 0 && (!this.buttonEnabledList[row] || !this.buttonEnabledList[row][col])) {
+    if (Object.keys(this.buttonEnabledList).length > 0 && (!this.buttonEnabledList[row] || !this.buttonEnabledList[row][column])) {
       return null;
     }
 
-    let divEl = document.createElement('DIV');
+    const divEl = document.createElement('DIV');
 
     addClass(divEl, 'collapsibleIndicator');
 
-    if (this.collapsedSections[row] && this.collapsedSections[row][col] === true) {
+    if (this.collapsedSections[row] && this.collapsedSections[row][column] === true) {
       addClass(divEl, 'collapsed');
       fastInnerText(divEl, '+');
     } else {
@@ -266,8 +289,9 @@ class CollapsibleColumns extends BasePlugin {
   }
 
   /**
-   * Mark (internally) a section as 'collapsed' or 'expanded' (optionally, also mark the 'child' headers).
+   * Marks (internally) a section as 'collapsed' or 'expanded' (optionally, also mark the 'child' headers).
    *
+   * @private
    * @param {String} state State ('collapsed' or 'expanded').
    * @param {Number} row Row index.
    * @param {Number} column Column index.
@@ -292,10 +316,10 @@ class CollapsibleColumns extends BasePlugin {
     }
 
     if (recursive) {
-      let nestedHeadersColspans = this.nestedHeadersPlugin.colspanArray;
-      let level = this.nestedHeadersPlugin.rowCoordsToLevel(row);
-      let childHeaders = this.nestedHeadersPlugin.getChildHeaders(row, column);
-      let childColspanLevel = nestedHeadersColspans[level + 1];
+      const nestedHeadersColspans = this.nestedHeadersPlugin.colspanArray;
+      const level = this.nestedHeadersPlugin.rowCoordsToLevel(row);
+      const childHeaders = this.nestedHeadersPlugin.getChildHeaders(row, column);
+      const childColspanLevel = nestedHeadersColspans[level + 1];
 
       for (let i = 1; i < childHeaders.length; i++) {
         if (childColspanLevel && childColspanLevel[childHeaders[i]].colspan > 1) {
@@ -306,7 +330,7 @@ class CollapsibleColumns extends BasePlugin {
   }
 
   /**
-   * Expand section at the provided coords.
+   * Expands section at the provided coords.
    *
    * @param {Object} coords Contains coordinates information. (`coords.row`, `coords.col`)
    */
@@ -316,7 +340,7 @@ class CollapsibleColumns extends BasePlugin {
   }
 
   /**
-   * Collapse section at the provided coords.
+   * Collapses section at the provided coords.
    *
    * @param {Object} coords Contains coordinates information. (`coords.row`, `coords.col`)
    */
@@ -326,28 +350,25 @@ class CollapsibleColumns extends BasePlugin {
   }
 
   /**
-   * Collapse or expand all collapsible sections, depending on the action parameter.
+   * Collapses or expand all collapsible sections, depending on the action parameter.
    *
    * @param {String} action 'collapse' or 'expand'.
    */
   toggleAllCollapsibleSections(action) {
-    let nestedHeadersColspanArray = this.nestedHeadersPlugin.colspanArray;
+    const nestedHeadersColspanArray = this.nestedHeadersPlugin.colspanArray;
 
     if (this.settings === true) {
 
       arrayEach(nestedHeadersColspanArray, (headerLevel, i) => {
         arrayEach(headerLevel, (header, j) => {
           if (header.colspan > 1) {
-            i = parseInt(i, 10);
-            j = parseInt(j, 10);
-
-            let row = this.nestedHeadersPlugin.levelToRowCoords(i);
-            let col = j;
+            const row = this.nestedHeadersPlugin.levelToRowCoords(parseInt(i, 10));
+            const col = parseInt(j, 10);
 
             this.markSectionAs(action === 'collapse' ? 'collapsed' : 'expanded', row, col, true);
             this.toggleCollapsibleSection({
-              row: row,
-              col: col
+              row,
+              col
             }, action);
 
           }
@@ -357,13 +378,13 @@ class CollapsibleColumns extends BasePlugin {
     } else {
       objectEach(this.buttonEnabledList, (headerRow, i) => {
         objectEach(headerRow, (header, j) => {
-          i = parseInt(i, 10);
-          j = parseInt(j, 10);
+          const rowIndex = parseInt(i, 10);
+          const columnIndex = parseInt(j, 10);
 
-          this.markSectionAs(action === 'collapse' ? 'collapsed' : 'expanded', i, j, true);
+          this.markSectionAs(action === 'collapse' ? 'collapsed' : 'expanded', rowIndex, columnIndex, true);
           this.toggleCollapsibleSection({
-            row: i,
-            col: j
+            row: rowIndex,
+            col: columnIndex
           }, action);
 
         });
@@ -372,21 +393,21 @@ class CollapsibleColumns extends BasePlugin {
   }
 
   /**
-   * Collapse all collapsible sections.
+   * Collapses all collapsible sections.
    */
   collapseAll() {
     this.toggleAllCollapsibleSections('collapse');
   }
 
   /**
-   * Expand all collapsible sections.
+   * Expands all collapsible sections.
    */
   expandAll() {
     this.toggleAllCollapsibleSections('expand');
   }
 
   /**
-   * Collapse/Expand a section.
+   * Collapses/Expands a section.
    *
    * @param {Object} coords Section coordinates.
    * @param {String} action Action definition ('collapse' or 'expand').
@@ -399,11 +420,11 @@ class CollapsibleColumns extends BasePlugin {
       coords.col = parseInt(coords.col, 10);
     }
 
-    let hiddenColumns = this.hiddenColumnsPlugin.hiddenColumns;
-    let colspanArray = this.nestedHeadersPlugin.colspanArray;
-    let level = this.nestedHeadersPlugin.rowCoordsToLevel(coords.row);
-    let currentHeaderColspan = colspanArray[level][coords.col].colspan;
-    let childHeaders = this.nestedHeadersPlugin.getChildHeaders(coords.row, coords.col);
+    const hiddenColumns = this.hiddenColumnsPlugin.hiddenColumns;
+    const colspanArray = this.nestedHeadersPlugin.colspanArray;
+    const level = this.nestedHeadersPlugin.rowCoordsToLevel(coords.row);
+    const currentHeaderColspan = colspanArray[level][coords.col].colspan;
+    const childHeaders = this.nestedHeadersPlugin.getChildHeaders(coords.row, coords.col);
     let nextLevel = level + 1;
     let childColspanLevel = colspanArray[nextLevel];
     let firstChildColspan = childColspanLevel ? childColspanLevel[childHeaders[0]].colspan || 1 : 1;
@@ -415,7 +436,7 @@ class CollapsibleColumns extends BasePlugin {
     }
 
     rangeEach(firstChildColspan, currentHeaderColspan - 1, (i) => {
-      let colToHide = coords.col + i;
+      const colToHide = coords.col + i;
 
       switch (action) {
         case 'collapse':
@@ -436,11 +457,11 @@ class CollapsibleColumns extends BasePlugin {
     });
 
     this.hot.render();
-
+    this.hot.view.wt.wtOverlays.adjustElementsSize(true);
   }
 
   /**
-   * Add the indicator to the headers.
+   * Adds the indicator to the headers.
    *
    * @private
    * @param {Number} column Column index.
@@ -448,7 +469,7 @@ class CollapsibleColumns extends BasePlugin {
    */
   onAfterGetColHeader(column, TH) {
     if (TH.hasAttribute('colspan') && TH.getAttribute('colspan') > 1 && column >= this.hot.getSettings().fixedColumnsLeft) {
-      let button = this.generateIndicator(column, TH);
+      const button = this.generateIndicator(column, TH);
 
       if (button !== null) {
         TH.querySelector('div:first-child').appendChild(button);
@@ -499,6 +520,8 @@ class CollapsibleColumns extends BasePlugin {
 
   /**
    * AfterRender hook callback.
+   *
+   * @private
    */
   onAfterRender() {
     if (!this.nestedHeadersPlugin.enabled || !this.hiddenColumnsPlugin.enabled) {
@@ -507,7 +530,7 @@ class CollapsibleColumns extends BasePlugin {
   }
 
   /**
-   * Destroy the plugin.
+   * Destroys the plugin instance.
    */
   destroy() {
     this.settings = null;

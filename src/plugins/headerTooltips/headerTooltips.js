@@ -1,8 +1,8 @@
 import {
   outerWidth
 } from 'handsontable/helpers/dom/element.js';
-import {registerPlugin} from 'handsontable/plugins.js';
-import {rangeEach} from 'handsontable/helpers/number';
+import { registerPlugin } from 'handsontable/plugins.js';
+import { rangeEach } from 'handsontable/helpers/number';
 import BasePlugin from 'handsontable/plugins/_base.js';
 
 /**
@@ -10,7 +10,7 @@ import BasePlugin from 'handsontable/plugins/_base.js';
  * @pro
  *
  * @description
- * Allows adding a tooltip to the table headers.
+ * Allows to add a tooltip to the table headers.
  *
  * Available options:
  * * the `rows` property defines if tooltips should be added to row headers,
@@ -19,13 +19,16 @@ import BasePlugin from 'handsontable/plugins/_base.js';
  *
  * @example
  * ```js
- * ...
- *  headerTooltips: {
- *    rows: true,
- *    columns: true,
- *    onlyTrimmed: false
- *  }
- * ...
+ * const container = document.getElementById('example');
+ * const hot = new Handsontable(container, {
+ *   date: getData(),
+ *   // enable and configure header tooltips
+ *   headerTooltips: {
+ *     rows: true,
+ *     columns: true,
+ *     onlyTrimmed: false
+ *   }
+ * });
  * ```
  */
 class HeaderTooltips extends BasePlugin {
@@ -35,22 +38,24 @@ class HeaderTooltips extends BasePlugin {
     /**
      * Cached plugin settings.
      *
+     * @private
      * @type {Boolean|Object}
      */
     this.settings = null;
   }
 
   /**
-   * Check if plugin is enabled.
+   * Checks if the plugin is enabled in the handsontable settings. This method is executed in {@link Hooks#beforeInit}
+   * hook and if it returns `true` than the {@link HeaderTooltips#enablePlugin} method is called.
    *
-   * @returns {boolean}
+   * @returns {Boolean}
    */
   isEnabled() {
     return !!this.hot.getSettings().headerTooltips;
   }
 
   /**
-   * Enable the plugin.
+   * Enables the plugin functionality for this Handsontable instance.
    */
   enablePlugin() {
     if (this.enabled) {
@@ -68,7 +73,7 @@ class HeaderTooltips extends BasePlugin {
   }
 
   /**
-   * Disable the plugin.
+   * Disables the plugin functionality for this Handsontable instance.
    */
   disablePlugin() {
     this.settings = null;
@@ -79,7 +84,9 @@ class HeaderTooltips extends BasePlugin {
   }
 
   /**
-   * Parse the plugin settings.
+   * Parses the plugin settings.
+   *
+   * @private
    */
   parseSettings() {
     if (typeof this.settings === 'boolean') {
@@ -92,21 +99,21 @@ class HeaderTooltips extends BasePlugin {
   }
 
   /**
-   * Clear the previously assigned title attributes.
+   * Clears the previously assigned title attributes.
    *
    * @private
    */
   clearTitleAttributes() {
-    let headerLevels = this.hot.view.wt.getSetting('columnHeaders').length;
-    let mainHeaders = this.hot.view.wt.wtTable.THEAD;
-    let topHeaders = this.hot.view.wt.wtOverlays.topOverlay.clone.wtTable.THEAD;
-    let topLeftCornerHeaders = this.hot.view.wt.wtOverlays.topLeftCornerOverlay ?
-      hot.view.wt.wtOverlays.topLeftCornerOverlay.clone.wtTable.THEAD : null;
+    const headerLevels = this.hot.view.wt.getSetting('columnHeaders').length;
+    const mainHeaders = this.hot.view.wt.wtTable.THEAD;
+    const topHeaders = this.hot.view.wt.wtOverlays.topOverlay.clone.wtTable.THEAD;
+    const topLeftCornerOverlay = this.hot.view.wt.wtOverlays.topLeftCornerOverlay;
+    const topLeftCornerHeaders = topLeftCornerOverlay ? topLeftCornerOverlay.clone.wtTable.THEAD : null;
 
     rangeEach(0, headerLevels - 1, (i) => {
-      let masterLevel = mainHeaders.childNodes[i];
-      let topLevel = topHeaders.childNodes[i];
-      let topLeftCornerLevel = topLeftCornerHeaders ? topLeftCornerHeaders.childNodes[i] : null;
+      const masterLevel = mainHeaders.childNodes[i];
+      const topLevel = topHeaders.childNodes[i];
+      const topLeftCornerLevel = topLeftCornerHeaders ? topLeftCornerHeaders.childNodes[i] : null;
 
       rangeEach(0, masterLevel.childNodes.length - 1, (j) => {
         masterLevel.childNodes[j].removeAttribute('title');
@@ -123,15 +130,15 @@ class HeaderTooltips extends BasePlugin {
   }
 
   /**
-   * Add a tooltip to the headers.
+   * Adds a tooltip to the headers.
    *
    * @private
    * @param {Number} index
    * @param {HTMLElement} TH
    */
   onAfterGetHeader(index, TH) {
-    let innerSpan = TH.querySelector('span');
-    let isColHeader = TH.parentNode.parentNode.nodeName === 'THEAD';
+    const innerSpan = TH.querySelector('span');
+    const isColHeader = TH.parentNode.parentNode.nodeName === 'THEAD';
 
     if (isColHeader && this.settings.columns || !isColHeader && this.settings.rows) {
       if (this.settings.onlyTrimmed) {
@@ -146,7 +153,7 @@ class HeaderTooltips extends BasePlugin {
   }
 
   /**
-   * Destroy the plugin.
+   * Destroys the plugin instance.
    */
   destroy() {
     this.settings = null;

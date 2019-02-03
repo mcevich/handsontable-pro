@@ -1,10 +1,10 @@
 import BasePlugin from 'handsontable/plugins/_base';
-import {addClass, removeClass} from 'handsontable/helpers/dom/element';
-import {objectEach, clone, deepClone, extend} from 'handsontable/helpers/object';
-import {warn} from 'handsontable/helpers/console';
-import {createEmptySpreadsheetData} from 'handsontable/helpers/data';
-import {registerPlugin} from 'handsontable/plugins';
-import {getDateYear, getEndDate, getStartDate, parseDate} from './utils';
+import { addClass, removeClass } from 'handsontable/helpers/dom/element';
+import { objectEach, deepClone, extend } from 'handsontable/helpers/object';
+import { warn } from 'handsontable/helpers/console';
+import { createEmptySpreadsheetData } from 'handsontable/helpers/data';
+import { registerPlugin } from 'handsontable/plugins';
+import { getDateYear, parseDate } from './utils';
 import DateCalculator from './dateCalculator';
 import GanttChartDataFeed from './ganttChartDataFeed';
 
@@ -85,6 +85,7 @@ class GanttChart extends BasePlugin {
     /**
      * Currently loaded year.
      *
+     * @private
      * @type {Number}
      */
     this.currentYear = null;
@@ -135,6 +136,7 @@ class GanttChart extends BasePlugin {
     /**
      * Object containing properties of the source Handsontable instance (the data source).
      *
+     * @private
      * @type {Object}
      */
     this.hotSource = null;
@@ -155,12 +157,14 @@ class GanttChart extends BasePlugin {
     /**
      * Data feed controller for this plugin.
      *
+     * @private
      * @type {GanttChartDataFeed}
      */
     this.dataFeed = null;
     /**
      * Color information set after applying colors to the chart.
      *
+     * @private
      * @type {Object}
      */
     this.colorData = {};
@@ -183,14 +187,17 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Check if plugin is enabled
+   * Checks if the plugin is enabled in the handsontable settings. This method is executed in {@link Hooks#beforeInit}
+   * hook and if it returns `true` than the {@link GanttChart#enablePlugin} method is called.
+   *
+   * @returns {Boolean}
    */
   isEnabled() {
     return !!this.hot.getSettings().ganttChart;
   }
 
   /**
-   * Enable the plugin
+   * Enables the plugin functionality for this Handsontable instance.
    */
   enablePlugin() {
     if (this.enabled) {
@@ -235,7 +242,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Disable the plugin.
+   * Disables the plugin functionality for this Handsontable instance.
    */
   disablePlugin() {
     if (this.internalUpdateSettings) {
@@ -263,7 +270,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Updates the plugin to use the latest options you have specified.
+   * Updates the plugin state. This method is executed when {@link Core#updateSettings} is invoked.
    */
   updatePlugin() {
     this.disablePlugin();
@@ -273,7 +280,9 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Parse the plugin settings.
+   * Parses the plugin settings.
+   *
+   * @private
    */
   parseSettings() {
     this.settings = this.hot.getSettings().ganttChart;
@@ -296,13 +305,13 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Apply the data source provided in the plugin settings.
+   * Applies the data source provided in the plugin settings.
    *
    * @private
    */
   applyDataSource() {
     if (this.settings.dataSource) {
-      let source = this.settings.dataSource;
+      const source = this.settings.dataSource;
 
       if (source.instance) {
         this.loadData(source.instance, source.startDateColumn, source.endDateColumn, source.additionalData, source.asyncUpdates);
@@ -313,7 +322,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Load chart data to the Handsontable instance.
+   * Loads chart data to the Handsontable instance.
    *
    * @private
    * @param {Array|Object} data Array of objects containing the range data OR another Handsontable instance, to be used as the data feed
@@ -329,7 +338,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Clear the range bars list.
+   * Clears the range bars list.
    *
    * @private
    */
@@ -338,7 +347,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Clear the range list.
+   * Clears the range list.
    *
    * @private
    */
@@ -347,7 +356,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Get a range bar coordinates by the provided row.
+   * Returns a range bar coordinates by the provided row.
    *
    * @param {Number} row Range bar's row.
    * @returns {Object}
@@ -357,7 +366,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Generate the month header structure.
+   * Generates the month header structure.
    *
    * @private
    */
@@ -366,7 +375,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Generate the week header structure.
+   * Generates the week header structure.
    *
    * @private
    */
@@ -375,7 +384,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Assign the settings needed for the Gantt Chart plugin into the Handsontable instance.
+   * Assigns the settings needed for the Gantt Chart plugin into the Handsontable instance.
    *
    * @private
    */
@@ -394,7 +403,7 @@ class GanttChart extends BasePlugin {
 
     this.initialSettings = deepClone(this.hot.getSettings());
 
-    let additionalSettings = {
+    const additionalSettings = {
       data: createEmptySpreadsheetData(1, this.overallWeekSectionCount),
       readOnly: true,
       renderer: (instance, TD, row, col, prop, value, cellProperties) =>
@@ -406,7 +415,8 @@ class GanttChart extends BasePlugin {
         this.weekHeadersArray.slice()
       ],
       collapsibleColumns: this.hot.getSettings().collapsibleColumns ? this.hot.getSettings().collapsibleColumns : true,
-      columnSorting: false
+      columnSorting: false,
+      copyPaste: false
     };
 
     this.internalUpdateSettings = true;
@@ -415,7 +425,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Deassign the Gantt Chart plugin settings (revert to initial settings).
+   * Deassigns the Gantt Chart plugin settings (revert to initial settings).
    *
    * @private
    */
@@ -450,7 +460,9 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Apply the cached cell meta.
+   * Applies the cached cell meta.
+   *
+   * @private
    */
   applyRangeBarMetaCache() {
     objectEach(this.rangeBarMeta, (rowArr, row) => {
@@ -470,10 +482,10 @@ class GanttChart extends BasePlugin {
    * @param {Boolean} following `true` if the following week is needed.
    * @param {Boolean} previous `true` if the previous week is needed.
    */
-  getAdjacentWeekColumn(date, following = true, previous) {
-    date = parseDate(date);
-    let delta = previous === true ? -7 : 7;
-    let adjacentWeek = date.setDate(date.getDate() + delta);
+  getAdjacentWeekColumn(date, following, previous) {
+    const convertedDate = parseDate(date);
+    const delta = previous === true ? -7 : 7;
+    const adjacentWeek = convertedDate.setDate(convertedDate.getDate() + delta);
 
     return this.dateCalculator.dateToColumn(adjacentWeek);
   }
@@ -494,7 +506,7 @@ class GanttChart extends BasePlugin {
 
     let startDateColumn = this.dateCalculator.dateToColumn(startDate);
     let endDateColumn = this.dateCalculator.dateToColumn(endDate);
-    let year = getDateYear(startDate); // every range bar should not exceed the limits of one year
+    const year = getDateYear(startDate); // every range bar should not exceed the limits of one year
     let startMoved = false;
     let endMoved = false;
 
@@ -552,7 +564,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Generate the information about which date is represented in which column.
+   * Generates the information about which date is represented in which column.
    *
    * @private
    * @param {Date} startDate Start date.
@@ -568,7 +580,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Get the range bar data of the provided row and column.
+   * Returns the range bar data of the provided row and column.
    *
    * @param {Number} row Row index.
    * @param {Number} column Column index.
@@ -576,13 +588,13 @@ class GanttChart extends BasePlugin {
    */
   getRangeBarData(row, column) {
     const year = this.dateCalculator.getYear();
-    let rangeBarCoords = this.getRangeBarCoordinates(row);
+    const rangeBarCoords = this.getRangeBarCoordinates(row);
 
     if (!rangeBarCoords) {
       return false;
     }
 
-    let rangeBarData = this.rangeBars[year][rangeBarCoords[0]][rangeBarCoords[1]];
+    const rangeBarData = this.rangeBars[year][rangeBarCoords[0]][rangeBarCoords[1]];
 
     if (rangeBarData && row === rangeBarCoords[0] &&
       (column === rangeBarCoords[1] || column > rangeBarCoords[1] && column < rangeBarCoords[1] + rangeBarData.barLength)) {
@@ -593,7 +605,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Update the range bar data by the provided object.
+   * Updates the range bar data by the provided object.
    *
    * @param {Number} row Row index.
    * @param {Number} column Column index.
@@ -610,21 +622,20 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Add a range bar to the table.
+   * Adds a range bar to the table.
    *
    * @private
    * @param {Number} row Row index.
    * @param {Number} startDateColumn Start column index.
    * @param {Number} endDateColumn End column index.
-   * @param {Object} additionalData Additional range data.
    */
-  renderRangeBar(row, startDateColumn, endDateColumn, additionalData) {
+  renderRangeBar(row, startDateColumn, endDateColumn) {
     const year = this.dateCalculator.getYear();
-    let currentBar = this.rangeBars[year][row][startDateColumn];
+    const currentBar = this.rangeBars[year][row][startDateColumn];
 
     for (let i = startDateColumn; i <= endDateColumn; i++) {
-      let cellMeta = this.hot.getCellMeta(row, i);
-      let newClassName = (cellMeta.className || '') + ' rangeBar';
+      const cellMeta = this.hot.getCellMeta(row, i);
+      let newClassName = `${cellMeta.className || ''} rangeBar`;
 
       if ((i === startDateColumn && currentBar.partialStart) || (i === endDateColumn && currentBar.partialEnd)) {
         newClassName += ' partial';
@@ -646,26 +657,26 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Remove a range bar of the provided start date and row.
+   * Removes a range bar of the provided start date and row.
    *
    * @param {Number} row Row index.
    * @param {Date|String} startDate Start date.
    */
   removeRangeBarByDate(row, startDate) {
-    let startDateColumn = this.dateCalculator.dateToColumn(startDate);
+    const startDateColumn = this.dateCalculator.dateToColumn(startDate);
 
     this.removeRangeBarByColumn(row, startDateColumn);
   }
 
   /**
-   * Remove a range bar of the provided row and start column.
+   * Removes a range bar of the provided row and start column.
    *
    * @param {Number} row Row index.
    * @param {Number} startDateColumn Column index.
    */
   removeRangeBarByColumn(row, startDateColumn) {
     const year = this.dateCalculator.getYear();
-    let rangeBar = this.rangeBars[year][row][startDateColumn];
+    const rangeBar = this.rangeBars[year][row][startDateColumn];
 
     if (!rangeBar) {
       return;
@@ -675,16 +686,16 @@ class GanttChart extends BasePlugin {
     this.rangeBars[year][row][startDateColumn] = null;
 
     objectEach(this.rangeList, (prop, i) => {
-      i = parseInt(i, 10);
+      const id = parseInt(i, 10);
 
       if (JSON.stringify(prop) === JSON.stringify([row, startDateColumn])) {
-        this.rangeList[i] = null;
+        this.rangeList[id] = null;
       }
     });
   }
 
   /**
-   * Remove all range bars from the chart-enabled Handsontable instance.
+   * Removes all range bars from the chart-enabled Handsontable instance.
    */
   removeAllRangeBars() {
     objectEach(this.rangeBars, (row, i) => {
@@ -695,7 +706,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Remove a range bar from the table.
+   * Removes a range bar from the table.
    *
    * @private
    * @param {Number} row Row index.
@@ -704,7 +715,7 @@ class GanttChart extends BasePlugin {
    */
   unrenderRangeBar(row, startDateColumn, endDateColumn) {
     for (let i = startDateColumn; i <= endDateColumn; i++) {
-      let cellMeta = this.hot.getCellMeta(row, i);
+      const cellMeta = this.hot.getCellMeta(row, i);
 
       this.hot.setCellMeta(row, i, 'className', cellMeta.originalClassName);
       this.hot.setCellMeta(row, i, 'originalClassName', void 0);
@@ -729,8 +740,8 @@ class GanttChart extends BasePlugin {
    * @param {Object} cellProperties Current cell properties.
    */
   uniformBackgroundRenderer(instance, TD, row, col, prop, value, cellProperties) {
-    let rangeBarInfo = this.getRangeBarData(row, col);
-    let rangeBarCoords = this.getRangeBarCoordinates(row);
+    const rangeBarInfo = this.getRangeBarData(row, col);
+    const rangeBarCoords = this.getRangeBarCoordinates(row);
 
     TD.innerHTML = '';
 
@@ -740,8 +751,8 @@ class GanttChart extends BasePlugin {
 
     let titleValue = '';
 
-    objectEach(cellProperties.additionalData, (prop, i) => {
-      titleValue += i + ': ' + prop + '\n';
+    objectEach(cellProperties.additionalData, (cellMeta, i) => {
+      titleValue += `${i}: ${cellMeta}\n`;
     });
 
     titleValue = titleValue.replace(/\n$/, '');
@@ -761,7 +772,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Set range bar colors.
+   * Sets range bar colors.
    *
    * @param {Object} rows Object containing row color data, see example.
    * @example
@@ -776,11 +787,11 @@ class GanttChart extends BasePlugin {
     this.colorData = rows;
 
     objectEach(rows, (colors, i) => {
-      let barCoords = this.getRangeBarCoordinates(i);
+      const barCoords = this.getRangeBarCoordinates(i);
 
       if (barCoords) {
         this.updateRangeBarData(barCoords[0], barCoords[1], {
-          colors: colors
+          colors
         });
       }
     });
@@ -789,12 +800,12 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Update the chart with a new year.
+   * Updates the chart with a new year.
    *
    * @param {Number} year New chart year.
    */
   setYear(year) {
-    let newSettings = extend(this.hot.getSettings().ganttChart, {
+    const newSettings = extend(this.hot.getSettings().ganttChart, {
       startYear: year
     });
 
@@ -815,7 +826,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Prevent update settings loop when assigning the additional internal settings.
+   * Prevents update settings loop when assigning the additional internal settings.
    *
    * @private
    */
@@ -830,9 +841,7 @@ class GanttChart extends BasePlugin {
   }
 
   /**
-   * Destroy the plugin
-   *
-   * @private
+   * Destroys the plugin instance.
    */
   destroy() {
     if (this.hotSource) {

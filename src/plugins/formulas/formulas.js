@@ -1,9 +1,9 @@
 import BasePlugin from 'handsontable/plugins/_base';
-import {arrayEach} from 'handsontable/helpers/array';
-import {isObject, objectEach} from 'handsontable/helpers/object';
+import { arrayEach } from 'handsontable/helpers/array';
+import { isObject, objectEach } from 'handsontable/helpers/object';
 import EventManager from 'handsontable/eventManager';
-import {registerPlugin} from 'handsontable/plugins';
-import {isFormulaExpression, toUpperCaseFormula, isFormulaExpressionEscaped, unescapeFormulaExpression} from './utils';
+import { registerPlugin } from 'handsontable/plugins';
+import { isFormulaExpression, toUpperCaseFormula, isFormulaExpressionEscaped, unescapeFormulaExpression } from './utils';
 import Sheet from './sheet';
 import DataProvider from './dataProvider';
 import UndoRedoSnapshot from './undoRedoSnapshot';
@@ -21,24 +21,28 @@ class Formulas extends BasePlugin {
     /**
      * Instance of {@link EventManager}.
      *
+     * @private
      * @type {EventManager}
      */
     this.eventManager = new EventManager(this);
     /**
      * Instance of {@link DataProvider}.
      *
+     * @private
      * @type {DataProvider}
      */
     this.dataProvider = new DataProvider(this.hot);
     /**
      * Instance of {@link Sheet}.
      *
+     * @private
      * @type {Sheet}
      */
     this.sheet = new Sheet(this.hot, this.dataProvider);
     /**
      * Instance of {@link UndoRedoSnapshot}.
      *
+     * @private
      * @type {UndoRedoSnapshot}
      */
     this.undoRedoSnapshot = new UndoRedoSnapshot(this.sheet);
@@ -53,7 +57,8 @@ class Formulas extends BasePlugin {
   }
 
   /**
-   * Check if the plugin is enabled in the Handsontable settings.
+   * Checks if the plugin is enabled in the handsontable settings. This method is executed in {@link Hooks#beforeInit}
+   * hook and if it returns `true` than the {@link Formulas#enablePlugin} method is called.
    *
    * @returns {Boolean}
    */
@@ -63,7 +68,7 @@ class Formulas extends BasePlugin {
   }
 
   /**
-   * Enable plugin for this Handsontable instance.
+   * Enables the plugin functionality for this Handsontable instance.
    */
   enablePlugin() {
     if (this.enabled) {
@@ -100,14 +105,14 @@ class Formulas extends BasePlugin {
   }
 
   /**
-   * Disable plugin for this Handsontable instance.
+   * Disables the plugin functionality for this Handsontable instance.
    */
   disablePlugin() {
     super.disablePlugin();
   }
 
   /**
-   * Get cell value (evaluated from formula expression) at specified cell coords.
+   * Returns cell value (evaluated from formula expression) at specified cell coords.
    *
    * @param {Number} row Row index.
    * @param {Number} column Column index.
@@ -120,7 +125,7 @@ class Formulas extends BasePlugin {
   }
 
   /**
-   * Check if there are any formula evaluations made under specific cell coords.
+   * Checks if there are any formula evaluations made under specific cell coords.
    *
    * @param {Number} row Row index.
    * @param {Number} column Column index.
@@ -131,28 +136,28 @@ class Formulas extends BasePlugin {
   }
 
   /**
-   * Recalculate all formulas (an algorithm will choose the best method of calculation).
+   * Recalculates all formulas (an algorithm will choose the best method of calculation).
    */
   recalculate() {
     this.sheet.recalculate();
   }
 
   /**
-   * Recalculate all formulas (rebuild dependencies from scratch - slow approach).
+   * Recalculates all formulas (rebuild dependencies from scratch - slow approach).
    */
   recalculateFull() {
     this.sheet.recalculateFull();
   }
 
   /**
-   * Recalculate all formulas (recalculate only changed cells - fast approach).
+   * Recalculates all formulas (recalculate only changed cells - fast approach).
    */
   recalculateOptimized() {
     this.sheet.recalculateOptimized();
   }
 
   /**
-   * Set predefined variable name which can be visible while parsing formula expression.
+   * Sets predefined variable name which can be visible while parsing formula expression.
    *
    * @param {String} name Variable name.
    * @param {*} value Variable value.
@@ -162,7 +167,7 @@ class Formulas extends BasePlugin {
   }
 
   /**
-   * Get variable name.
+   * Returns variable name.
    *
    * @param {String} name Variable name.
    * @returns {*}
@@ -176,9 +181,8 @@ class Formulas extends BasePlugin {
    *
    * @private
    * @param {Array} cells An array of recalculated/changed cells.
-   * @param {String} type Recalculation type (`optimized` or `full`).
    */
-  onSheetAfterRecalculate(cells, type) {
+  onSheetAfterRecalculate(cells) {
     if (this._skipRendering) {
       this._skipRendering = false;
 
@@ -186,7 +190,7 @@ class Formulas extends BasePlugin {
     }
     const hot = this.hot;
 
-    arrayEach(cells, ({row, column}) => {
+    arrayEach(cells, ({ row, column }) => {
       hot.validateCell(hot.getDataAtCell(row, column), hot.getCellMeta(row, column), () => {});
     });
     hot.render();
@@ -219,11 +223,13 @@ class Formulas extends BasePlugin {
    * @returns {*}
    */
   onBeforeValueRender(value) {
-    if (isFormulaExpressionEscaped(value)) {
-      value = unescapeFormulaExpression(value);
+    let renderValue = value;
+
+    if (isFormulaExpressionEscaped(renderValue)) {
+      renderValue = unescapeFormulaExpression(renderValue);
     }
 
-    return value;
+    return renderValue;
   }
 
   /**
@@ -233,16 +239,16 @@ class Formulas extends BasePlugin {
    * @param {*} value Value to validate.
    * @param {Number} row Row index.
    * @param {Number} prop Column property.
-   * @param {String} source Validation source call.
    */
-  onBeforeValidate(value, row, prop, source) {
+  onBeforeValidate(value, row, prop) {
     const column = this.hot.propToCol(prop);
+    let validateValue = value;
 
     if (this.hasComputedCellValue(row, column)) {
-      value = this.getCellValue(row, column);
+      validateValue = this.getCellValue(row, column);
     }
 
-    return value;
+    return validateValue;
   }
 
   /**
@@ -260,17 +266,18 @@ class Formulas extends BasePlugin {
     this.dataProvider.clearChanges();
 
     arrayEach(changes, ([row, column, oldValue, newValue]) => {
-      column = this.hot.propToCol(column);
-      row = this.t.toPhysicalRow(row);
+      const physicalColumn = this.hot.propToCol(column);
+      const physicalRow = this.t.toPhysicalRow(row);
+      let value = newValue;
 
-      if (isFormulaExpression(newValue)) {
-        newValue = toUpperCaseFormula(newValue);
+      if (isFormulaExpression(value)) {
+        value = toUpperCaseFormula(value);
       }
 
-      this.dataProvider.collectChanges(row, column, newValue);
+      this.dataProvider.collectChanges(physicalRow, physicalColumn, value);
 
-      if (oldValue !== newValue) {
-        this.sheet.applyChanges(row, column, newValue);
+      if (oldValue !== value) {
+        this.sheet.applyChanges(physicalRow, physicalColumn, value);
       }
     });
     this.recalculate();
@@ -405,7 +412,7 @@ class Formulas extends BasePlugin {
   }
 
   /**
-   * Destroy plugin.
+   * Destroys the plugin instance.
    */
   destroy() {
     this.dataProvider.destroy();

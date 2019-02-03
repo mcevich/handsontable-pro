@@ -1,14 +1,13 @@
 import BasePlugin from 'handsontable/plugins/_base';
-import {arrayEach} from 'handsontable/helpers/array';
-import {objectEach} from 'handsontable/helpers/object';
+import { arrayEach } from 'handsontable/helpers/array';
 import CommandExecutor from 'handsontable/plugins/contextMenu/commandExecutor';
 import EventManager from 'handsontable/eventManager';
-import {getWindowScrollTop, getWindowScrollLeft, hasClass, closest} from 'handsontable/helpers/dom/element';
+import { hasClass } from 'handsontable/helpers/dom/element';
 import ItemsFactory from 'handsontable/plugins/contextMenu/itemsFactory';
 import Menu from 'handsontable/plugins/contextMenu/menu';
-import {registerPlugin} from 'handsontable/plugins';
+import { registerPlugin } from 'handsontable/plugins';
 import Hooks from 'handsontable/pluginHooks';
-import {stopPropagation} from 'handsontable/helpers/dom/event';
+import { stopPropagation } from 'handsontable/helpers/dom/event';
 import {
   COLUMN_LEFT,
   COLUMN_RIGHT,
@@ -33,6 +32,38 @@ const BUTTON_CLASS_NAME = 'changeType';
  * @plugin DropdownMenu
  * @pro
  * @dependencies ContextMenu
+ *
+ * @description
+ * This plugin creates the Handsontable Dropdown Menu. It allows to create a new row or column at any place in the grid
+ * among [other features](http://docs.handsontable.com/demo-context-menu.html).
+ * Possible values:
+ * * `true` (to enable default options),
+ * * `false` (to disable completely)
+ *
+ * or array of any available strings:
+ * * `["row_above", "row_below", "col_left", "col_right",
+ * "remove_row", "remove_col", "---------", "undo", "redo"]`.
+ *
+ * See [the dropdown menu demo](http://docs.handsontable.com/demo-dropdown-menu.html) for examples.
+ *
+ * @example
+ * ```
+ * const container = document.getElementById('example');
+ * const hot = new Handsontable(container, {
+ *   data: data,
+ *   colHeaders: true,
+ *   // enable dropdown menu
+ *   dropdownMenu: true
+ * });
+ *
+ * // or
+ * const hot = new Handsontable(container, {
+ *   data: data,
+ *   colHeaders: true,
+ *   // enable and configure dropdown menu
+ *   dropdownMenu: ['remove_col', '---------', 'make_read_only', 'alignment']
+ * });
+ * ```
  */
 class DropdownMenu extends BasePlugin {
   /**
@@ -60,24 +91,28 @@ class DropdownMenu extends BasePlugin {
     /**
      * Instance of {@link EventManager}.
      *
+     * @private
      * @type {EventManager}
      */
     this.eventManager = new EventManager(this);
     /**
      * Instance of {@link CommandExecutor}.
      *
+     * @private
      * @type {CommandExecutor}
      */
     this.commandExecutor = new CommandExecutor(this.hot);
     /**
      * Instance of {@link ItemsFactory}.
      *
+     * @private
      * @type {ItemsFactory}
      */
     this.itemsFactory = null;
     /**
      * Instance of {@link Menu}.
      *
+     * @private
      * @type {Menu}
      */
     this.menu = null;
@@ -87,7 +122,8 @@ class DropdownMenu extends BasePlugin {
   }
 
   /**
-   * Check if the plugin is enabled in the Handsontable settings.
+   * Checks if the plugin is enabled in the handsontable settings. This method is executed in {@link Hooks#beforeInit}
+   * hook and if it returns `true` than the {@link DropdownMenu#enablePlugin} method is called.
    *
    * @returns {Boolean}
    */
@@ -96,7 +132,10 @@ class DropdownMenu extends BasePlugin {
   }
 
   /**
-   * Enable the plugin for this Handsontable instance.
+   * Enables the plugin functionality for this Handsontable instance.
+   *
+   * @fires Hooks#afterDropdownMenuDefaultOptions
+   * @fires Hooks#beforeDropdownMenuSetItems
    */
   enablePlugin() {
     if (this.enabled) {
@@ -105,7 +144,7 @@ class DropdownMenu extends BasePlugin {
     this.itemsFactory = new ItemsFactory(this.hot, DropdownMenu.DEFAULT_ITEMS);
 
     const settings = this.hot.getSettings().dropdownMenu;
-    let predefinedItems = {
+    const predefinedItems = {
       items: this.itemsFactory.getItems(settings)
     };
     this.registerEvents();
@@ -119,7 +158,7 @@ class DropdownMenu extends BasePlugin {
       this.hot.runHooks('afterDropdownMenuDefaultOptions', predefinedItems);
 
       this.itemsFactory.setPredefinedItems(predefinedItems.items);
-      let menuItems = this.itemsFactory.getItems(settings);
+      const menuItems = this.itemsFactory.getItems(settings);
 
       if (this.menu) {
         this.menu.destroy();
@@ -135,15 +174,15 @@ class DropdownMenu extends BasePlugin {
       this.menu.addLocalHook('beforeOpen', () => this.onMenuBeforeOpen());
       this.menu.addLocalHook('afterOpen', () => this.onMenuAfterOpen());
       this.menu.addLocalHook('afterClose', () => this.onMenuAfterClose());
-      this.menu.addLocalHook('executeCommand', (...params) => this.executeCommand.apply(this, params));
+      this.menu.addLocalHook('executeCommand', (...params) => this.executeCommand.call(this, ...params));
 
       // Register all commands. Predefined and added by user or by plugins
-      arrayEach(menuItems, (command) => this.commandExecutor.registerCommand(command.key, command));
+      arrayEach(menuItems, command => this.commandExecutor.registerCommand(command.key, command));
     });
   }
 
   /**
-   * Updates the plugin to use the latest options you have specified.
+   * Updates the plugin state. This method is executed when {@link Core#updateSettings} is invoked.
    */
   updatePlugin() {
     this.disablePlugin();
@@ -152,7 +191,7 @@ class DropdownMenu extends BasePlugin {
   }
 
   /**
-   * Disable the plugin for this Handsontable instance.
+   * Disables the plugin functionality for this Handsontable instance.
    */
   disablePlugin() {
     this.close();
@@ -164,31 +203,36 @@ class DropdownMenu extends BasePlugin {
   }
 
   /**
-   * Register the DOM listeners.
+   * Registers the DOM listeners.
    *
    * @private
    */
   registerEvents() {
-    this.eventManager.addEventListener(this.hot.rootElement, 'click', (event) => this.onTableClick(event));
+    this.eventManager.addEventListener(this.hot.rootElement, 'click', event => this.onTableClick(event));
   }
 
   /**
-   * Open menu and re-position it based on the DOM event object.
+   * Opens menu and re-position it based on the passed coordinates.
    *
-   * @param {Event|Object} event Event object.
+   * @param {Object|Event} position An object with `pageX` and `pageY` properties which contains values relative to
+   *                                the top left of the fully rendered content area in the browser or with `clientX`
+   *                                and `clientY`  properties which contains values relative to the upper left edge
+   *                                of the content area (the viewport) of the browser window. This object is structurally
+   *                                compatible with native mouse event so it can be used either.
    * @fires Hooks#beforeDropdownMenuShow
    * @fires Hooks#afterDropdownMenuShow
    */
-  open(event) {
+
+  open(position) {
     if (!this.menu) {
       return;
     }
     this.menu.open();
 
-    if (event.width) {
-      this.menu.setOffset('left', event.width);
+    if (position.width) {
+      this.menu.setOffset('left', position.width);
     }
-    this.menu.setPosition(event);
+    this.menu.setPosition(position);
 
     // ContextMenu is not detected HotTableEnv correctly because is injected outside hot-table
     this.menu.hotMenu.isHotTableEnv = this.hot.isHotTableEnv;
@@ -196,7 +240,7 @@ class DropdownMenu extends BasePlugin {
   }
 
   /**
-   * Close menu.
+   * Closes dropdown menu.
    */
   close() {
     if (!this.menu) {
@@ -206,7 +250,7 @@ class DropdownMenu extends BasePlugin {
   }
 
   /**
-   * Execute context menu command.
+   * Executes context menu command.
    *
    * You can execute all predefined commands:
    *  * `'row_above'` - Insert row above
@@ -228,16 +272,17 @@ class DropdownMenu extends BasePlugin {
    *
    * Or you can execute command registered in settings where `key` is your command name.
    *
-   * @param {String} commandName
+   * @param {String} commandName Command name to execute.
    * @param {*} params
    */
-  executeCommand(...params) {
-    this.commandExecutor.execute.apply(this.commandExecutor, params);
+  executeCommand(commandName, ...params) {
+    this.commandExecutor.execute(commandName, ...params);
   }
 
   /**
-   * Turn on / turn off listening on dropdown menu
+   * Turns on / off listening on dropdown menu
    *
+   * @private
    * @param {Boolean} listen Turn on listening when value is set to true, otherwise turn it off.
    */
   setListening(listen = true) {
@@ -260,7 +305,7 @@ class DropdownMenu extends BasePlugin {
     stopPropagation(event);
 
     if (hasClass(event.target, BUTTON_CLASS_NAME) && !this.menu.isOpened()) {
-      let rect = event.target.getBoundingClientRect();
+      const rect = event.target.getBoundingClientRect();
 
       this.open({
         left: rect.left,
@@ -280,19 +325,19 @@ class DropdownMenu extends BasePlugin {
    */
   onAfterGetColHeader(col, TH) {
     // Corner or a higher-level header
-    let headerRow = TH.parentNode;
+    const headerRow = TH.parentNode;
     if (!headerRow) {
       return;
     }
 
-    let headerRowList = headerRow.parentNode.childNodes;
-    let level = Array.prototype.indexOf.call(headerRowList, headerRow);
+    const headerRowList = headerRow.parentNode.childNodes;
+    const level = Array.prototype.indexOf.call(headerRowList, headerRow);
 
     if (col < 0 || level !== headerRowList.length - 1) {
       return;
     }
 
-    const existingButton = TH.querySelector('.' + BUTTON_CLASS_NAME);
+    const existingButton = TH.querySelector(`.${BUTTON_CLASS_NAME}`);
 
     // Plugin enabled and buttons already exists, return.
     if (this.enabled && existingButton) {
@@ -306,7 +351,7 @@ class DropdownMenu extends BasePlugin {
 
       return;
     }
-    let button = document.createElement('button');
+    const button = document.createElement('button');
 
     button.className = BUTTON_CLASS_NAME;
 
@@ -322,6 +367,7 @@ class DropdownMenu extends BasePlugin {
    * On menu before open listener.
    *
    * @private
+   * @fires Hooks#beforeDropdownMenuShow
    */
   onMenuBeforeOpen() {
     this.hot.runHooks('beforeDropdownMenuShow', this);
@@ -331,6 +377,7 @@ class DropdownMenu extends BasePlugin {
    * On menu after open listener.
    *
    * @private
+   * @fires Hooks#afterDropdownMenuShow
    */
   onMenuAfterOpen() {
     this.hot.runHooks('afterDropdownMenuShow', this);
@@ -340,6 +387,7 @@ class DropdownMenu extends BasePlugin {
    * On menu after close listener.
    *
    * @private
+   * @fires Hooks#afterDropdownMenuHide
    */
   onMenuAfterClose() {
     this.hot.listen();
@@ -347,7 +395,7 @@ class DropdownMenu extends BasePlugin {
   }
 
   /**
-   * Destroy instance.
+   * Destroys the plugin instance.
    */
   destroy() {
     this.close();

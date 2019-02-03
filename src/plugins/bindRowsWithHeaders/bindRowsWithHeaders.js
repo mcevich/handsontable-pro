@@ -1,7 +1,6 @@
 import BasePlugin from 'handsontable/plugins/_base';
-import {arrayEach} from 'handsontable/helpers/array';
-import {rangeEach} from 'handsontable/helpers/number';
-import {registerPlugin} from 'handsontable/plugins';
+import { rangeEach } from 'handsontable/helpers/number';
+import { registerPlugin } from 'handsontable/plugins';
 import BindStrategy from './bindStrategy';
 
 /**
@@ -9,19 +8,19 @@ import BindStrategy from './bindStrategy';
  * @pro
  *
  * @description
- * Plugin allowing binding the table rows with their headers.
- * If the plugin is enabled, the table row headers will "stick" to the rows, when they are hidden/moved. Basically, if at the initialization
- * row 0 has a header titled "A", it will have it no matter what you do with the table.
+ * Plugin allows binding the table rows with their headers.
+ *
+ * If the plugin is enabled, the table row headers will "stick" to the rows, when they are hidden/moved. Basically, if
+ * at the initialization row 0 has a header titled "A", it will have it no matter what you do with the table.
  *
  * @example
- *
  * ```js
- * ...
- * var hot = new Handsontable(document.getElementById('example'), {
+ * const container = document.getElementById('example');
+ * const hot = new Handsontable(container, {
  *   date: getData(),
+ *   // enable plugin
  *   bindRowsWithHeaders: true
  * });
- * ...
  * ```
  */
 class BindRowsWithHeaders extends BasePlugin {
@@ -30,19 +29,22 @@ class BindRowsWithHeaders extends BasePlugin {
     /**
      * Strategy object for binding rows with headers.
      *
+     * @private
      * @type {BindStrategy}
      */
     this.bindStrategy = new BindStrategy();
     /**
      * List of last removed row indexes.
      *
+     * @private
      * @type {Array}
      */
     this.removedRows = [];
   }
 
   /**
-   * Check if plugin is enabled.
+   * Checks if the plugin is enabled in the handsontable settings. This method is executed in {@link Hooks#beforeInit}
+   * hook and if it returns `true` than the {@link BindRowsWithHeaders#enablePlugin} method is called.
    *
    * @returns {Boolean}
    */
@@ -51,7 +53,7 @@ class BindRowsWithHeaders extends BasePlugin {
   }
 
   /**
-   * Enable the plugin.
+   * Enables the plugin functionality for this Handsontable instance.
    */
   enablePlugin() {
     if (this.enabled) {
@@ -65,24 +67,24 @@ class BindRowsWithHeaders extends BasePlugin {
     this.bindStrategy.setStrategy(bindStrategy);
     this.bindStrategy.createMap(this.hot.countSourceRows());
 
-    this.addHook('modifyRowHeader', (row) => this.onModifyRowHeader(row));
+    this.addHook('modifyRowHeader', row => this.onModifyRowHeader(row));
     this.addHook('afterCreateRow', (index, amount) => this.onAfterCreateRow(index, amount));
     this.addHook('beforeRemoveRow', (index, amount) => this.onBeforeRemoveRow(index, amount));
-    this.addHook('afterRemoveRow', (index, amount) => this.onAfterRemoveRow(index, amount));
-    this.addHook('afterLoadData', (firstRun) => this.onAfterLoadData(firstRun));
+    this.addHook('afterRemoveRow', () => this.onAfterRemoveRow());
+    this.addHook('afterLoadData', firstRun => this.onAfterLoadData(firstRun));
 
     super.enablePlugin();
   }
 
   /**
-   * Updates the plugin to use the latest options you have specified.
+   * Updates the plugin state. This method is executed when {@link Core#updateSettings} is invoked.
    */
   updatePlugin() {
     super.updatePlugin();
   }
 
   /**
-   * Disable the plugin.
+   * Disables the plugin functionality for this Handsontable instance.
    */
   disablePlugin() {
     this.removedRows.length = 0;
@@ -96,6 +98,8 @@ class BindRowsWithHeaders extends BasePlugin {
    * @private
    * @param {Number} row Row index.
    * @returns {Number}
+   *
+   * @fires Hooks#modifyRow
    */
   onModifyRowHeader(row) {
     return this.bindStrategy.translate(this.hot.runHooks('modifyRow', row));
@@ -118,6 +122,8 @@ class BindRowsWithHeaders extends BasePlugin {
    * @private
    * @param {Number} index Row index.
    * @param {Number} amount Defines how many rows removed.
+   *
+   * @fires Hooks#modifyRow
    */
   onBeforeRemoveRow(index, amount) {
     this.removedRows.length = 0;
@@ -134,10 +140,8 @@ class BindRowsWithHeaders extends BasePlugin {
    * On after remove row listener.
    *
    * @private
-   * @param {Number} index Row index.
-   * @param {Number} amount Defines how many rows removed.
    */
-  onAfterRemoveRow(index, amount) {
+  onAfterRemoveRow() {
     this.bindStrategy.removeRow(this.removedRows);
   }
 
@@ -154,7 +158,7 @@ class BindRowsWithHeaders extends BasePlugin {
   }
 
   /**
-   * Destroy plugin.
+   * Destroys the plugin instance.
    */
   destroy() {
     this.bindStrategy.destroy();

@@ -1,19 +1,65 @@
 import BasePlugin from 'handsontable/plugins/_base';
-import {addClass, removeClass} from 'handsontable/helpers/dom/element';
-import {rangeEach} from 'handsontable/helpers/number';
-import {arrayEach} from 'handsontable/helpers/array';
-import {registerPlugin, getPlugin} from 'handsontable/plugins';
-import {SEPARATOR} from 'handsontable/plugins/contextMenu/predefinedItems';
+import { addClass } from 'handsontable/helpers/dom/element';
+import { rangeEach } from 'handsontable/helpers/number';
+import { arrayEach } from 'handsontable/helpers/array';
+import { registerPlugin } from 'handsontable/plugins';
+import { SEPARATOR } from 'handsontable/plugins/contextMenu/predefinedItems';
 import hideColumnItem from './contextMenuItem/hideColumn';
 import showColumnItem from './contextMenuItem/showColumn';
 
 import './hiddenColumns.css';
 
 /**
- * Plugin allowing to hide certain columns.
- *
  * @plugin HiddenColumns
  * @pro
+ *
+ * @description
+ * Plugin allows to hide certain columns. The hiding is achieved by rendering the columns with width set as 0px.
+ * The plugin not modifies the source data and do not participate in data transformation (the shape of data returned
+ * by `getData*` methods stays intact).
+ *
+ * Possible plugin settings:
+ *  * `copyPasteEnabled` as `Boolean` (default `true`)
+ *  * `columns` as `Array`
+ *  * `indicators` as `Boolean` (default `false`)
+ *
+ * @example
+ *
+ * ```js
+ * const container = document.getElementById('example');
+ * const hot = new Handsontable(container, {
+ *   date: getData(),
+ *   hiddenColumns: {
+ *     copyPasteEnabled: true,
+ *     indicators: true,
+ *     columns: [1, 2, 5]
+ *   }
+ * });
+ *
+ * // access to hiddenRows plugin instance:
+ * const hiddenColumnsPlugin = hot.getPlugin('hiddenColumns');
+ *
+ * // show single row
+ * hiddenColumnsPlugin.showColumn(1);
+ *
+ * // show multiple rows
+ * hiddenColumnsPlugin.showColumn(1, 2, 9);
+ *
+ * // or as an array
+ * hiddenColumnsPlugin.showColumns([1, 2, 9]);
+ *
+ * // hide single row
+ * hiddenColumnsPlugin.hideColumn(1);
+ *
+ * // hide multiple rows
+ * hiddenColumnsPlugin.hideColumn(1, 2, 9);
+ *
+ * // or as an array
+ * hiddenColumnsPlugin.hideColumns([1, 2, 9]);
+ *
+ * // rerender the table to see all changes
+ * hot.render();
+ * ```
  */
 class HiddenColumns extends BasePlugin {
   constructor(hotInstance) {
@@ -21,18 +67,21 @@ class HiddenColumns extends BasePlugin {
     /**
      * Cached plugin settings.
      *
-     * @type {null|Object}
+     * @private
+     * @type {Object}
      */
     this.settings = {};
     /**
      * List of currently hidden columns
      *
-     * @type {Boolean|Object}
+     * @private
+     * @type {Number[]}
      */
     this.hiddenColumns = [];
     /**
      * Last selected column index.
      *
+     * @private
      * @type {Number}
      * @default -1
      */
@@ -40,7 +89,8 @@ class HiddenColumns extends BasePlugin {
   }
 
   /**
-   * Check if plugin is enabled.
+   * Checks if the plugin is enabled in the handsontable settings. This method is executed in {@link Hooks#beforeInit}
+   * hook and if it returns `true` than the {@link HiddenColumns#enablePlugin} method is called.
    *
    * @returns {Boolean}
    */
@@ -49,7 +99,7 @@ class HiddenColumns extends BasePlugin {
   }
 
   /**
-   * Enable the plugin.
+   * Enables the plugin functionality for this Handsontable instance.
    */
   enablePlugin() {
     if (this.enabled) {
@@ -62,12 +112,12 @@ class HiddenColumns extends BasePlugin {
       this.addHook('afterRenderer', (TD, row, col) => this.onAfterGetColHeader(col, TD));
     }
 
-    this.addHook('afterContextMenuDefaultOptions', (options) => this.onAfterContextMenuDefaultOptions(options));
+    this.addHook('afterContextMenuDefaultOptions', options => this.onAfterContextMenuDefaultOptions(options));
     this.addHook('afterGetCellMeta', (row, col, cellProperties) => this.onAfterGetCellMeta(row, col, cellProperties));
     this.addHook('modifyColWidth', (width, col) => this.onModifyColWidth(width, col));
-    this.addHook('beforeSetRangeStartOnly', (coords) => this.onBeforeSetRangeStart(coords));
-    this.addHook('beforeSetRangeEnd', (coords) => this.onBeforeSetRangeEnd(coords));
-    this.addHook('hiddenColumn', (column) => this.isHidden(column));
+    this.addHook('beforeSetRangeStartOnly', coords => this.onBeforeSetRangeStart(coords));
+    this.addHook('beforeSetRangeEnd', coords => this.onBeforeSetRangeEnd(coords));
+    this.addHook('hiddenColumn', column => this.isHidden(column));
     this.addHook('beforeStretchingColumnWidth', (width, column) => this.onBeforeStretchingColumnWidth(width, column));
     this.addHook('afterCreateCol', (index, amount) => this.onAfterCreateCol(index, amount));
     this.addHook('afterRemoveCol', (index, amount) => this.onAfterRemoveCol(index, amount));
@@ -81,7 +131,7 @@ class HiddenColumns extends BasePlugin {
   }
 
   /**
-   * Updates the plugin to use the latest options you have specified.
+   * Updates the plugin state. This method is executed when {@link Core#updateSettings} is invoked.
    */
   updatePlugin() {
     this.disablePlugin();
@@ -91,7 +141,7 @@ class HiddenColumns extends BasePlugin {
   }
 
   /**
-   * Disable the plugin.
+   * Disables the plugin functionality for this Handsontable instance.
    */
   disablePlugin() {
     this.settings = {};
@@ -104,68 +154,70 @@ class HiddenColumns extends BasePlugin {
   }
 
   /**
-   * Show the provided columns.
+   * Shows the provided columns.
    *
-   * @param {Array} columns Array of column indexes.
+   * @param {Number[]} columns Array of column indexes.
    */
   showColumns(columns) {
     arrayEach(columns, (column) => {
-      column = parseInt(column, 10);
-      column = this.getLogicalColumnIndex(column);
+      let columnIndex = parseInt(column, 10);
+      columnIndex = this.getLogicalColumnIndex(columnIndex);
 
-      if (this.isHidden(column, true)) {
-        this.hiddenColumns.splice(this.hiddenColumns.indexOf(column), 1);
+      if (this.isHidden(columnIndex, true)) {
+        this.hiddenColumns.splice(this.hiddenColumns.indexOf(columnIndex), 1);
       }
     });
   }
 
   /**
-   * Show a single column.
+   * Shows a single column.
    *
-   * @param {Number} column Column index.
+   * @param {...Number} column Column index.
    */
   showColumn(...column) {
     this.showColumns(column);
   }
 
   /**
-   * Hide the columns provided in the array.
+   * Hides the columns provided in the array.
    *
-   * @param {Array} columns Array of column indexes.
+   * @param {Number[]} columns Array of column indexes.
    */
   hideColumns(columns) {
     arrayEach(columns, (column) => {
-      column = parseInt(column, 10);
-      column = this.getLogicalColumnIndex(column);
+      let columnIndex = parseInt(column, 10);
+      columnIndex = this.getLogicalColumnIndex(columnIndex);
 
-      if (!this.isHidden(column, true)) {
-        this.hiddenColumns.push(column);
+      if (!this.isHidden(columnIndex, true)) {
+        this.hiddenColumns.push(columnIndex);
       }
     });
   }
 
   /**
-   * Hide a single column.
+   * Hides a single column.
    *
-   * @param {Number} column Column index.
+   * @param {...Number} column Column index.
    */
   hideColumn(...column) {
     this.hideColumns(column);
   }
 
   /**
-   * Check if the provided column is hidden.
+   * Checks if the provided column is hidden.
    *
    * @param {Number} column Column index.
    * @param {Boolean} isLogicIndex flag which determines type of index.
    * @returns {Boolean}
    */
   isHidden(column, isLogicIndex = false) {
+    let columnIndex = column;
+
     if (!isLogicIndex) {
-      column = this.getLogicalColumnIndex(column);
+      columnIndex = this.getLogicalColumnIndex(columnIndex);
     }
 
-    return this.hiddenColumns.indexOf(column) > -1;
+    return this.hiddenColumns.indexOf(columnIndex) > -1;
   }
 
   /**
@@ -189,30 +241,36 @@ class HiddenColumns extends BasePlugin {
   /**
    * Get the logical index of the provided column.
    *
-   * @param {Number} column
+   * @private
+   * @param {Number} column Column index.
    * @returns {Number}
+   *
+   * @fires Hooks#modifyCol
    */
   getLogicalColumnIndex(column) {
     return this.hot.runHooks('modifyCol', column);
   }
 
   /**
-   * Set width hidden columns on 0
+   * Sets width hidden columns on 0
    *
+   * @private
    * @param {Number} width Column width.
    * @param {Number} column Column index.
    * @returns {Number}
    */
   onBeforeStretchingColumnWidth(width, column) {
+    let stretchedWidth = width;
+
     if (this.isHidden(column)) {
-      width = 0;
+      stretchedWidth = 0;
     }
 
-    return width;
+    return stretchedWidth;
   }
 
   /**
-   * Add the additional column width for the hidden column indicators.
+   * Adds the additional column width for the hidden column indicators.
    *
    * @private
    * @param {Number} width
@@ -232,21 +290,23 @@ class HiddenColumns extends BasePlugin {
   }
 
   /**
-   * Set the copy-related cell meta.
+   * Sets the copy-related cell meta.
    *
    * @private
    * @param {Number} row
    * @param {Number} col
    * @param {Object} cellProperties
+   *
+   * @fires Hooks#unmodifyCol
    */
   onAfterGetCellMeta(row, col, cellProperties) {
-    col = this.hot.runHooks('unmodifyCol', col);
+    const colIndex = this.hot.runHooks('unmodifyCol', col);
 
     if (this.settings.copyPasteEnabled === false && this.isHidden(col)) {
       cellProperties.skipColumnOnPaste = true;
     }
 
-    if (this.isHidden(col)) {
+    if (this.isHidden(colIndex)) {
       if (cellProperties.renderer !== hiddenRenderer) {
         cellProperties.baseRenderer = cellProperties.renderer;
       }
@@ -273,23 +333,23 @@ class HiddenColumns extends BasePlugin {
           break;
         }
 
-        i--;
+        i -= 1;
       } while (i >= 0);
 
       if (firstSectionHidden && cellProperties.className.indexOf('firstVisibleColumn') === -1) {
         cellProperties.className += ' firstVisibleColumn';
       }
     } else if (cellProperties.className) {
-      let classArr = cellProperties.className.split(' ');
+      const classArr = cellProperties.className.split(' ');
 
       if (classArr.length) {
-        let containAfterHiddenColumn = classArr.indexOf('afterHiddenColumn');
+        const containAfterHiddenColumn = classArr.indexOf('afterHiddenColumn');
 
         if (containAfterHiddenColumn > -1) {
           classArr.splice(containAfterHiddenColumn, 1);
         }
 
-        let containFirstVisible = classArr.indexOf('firstVisibleColumn');
+        const containFirstVisible = classArr.indexOf('firstVisibleColumn');
 
         if (containFirstVisible > -1) {
           classArr.splice(containFirstVisible, 1);
@@ -301,17 +361,17 @@ class HiddenColumns extends BasePlugin {
   }
 
   /**
-   * Modify the copyable range, accordingly to the provided config.
+   * Modifies the copyable range, accordingly to the provided config.
    *
    * @private
    * @param {Array} ranges
    * @returns {Array}
    */
   onModifyCopyableRange(ranges) {
-    let newRanges = [];
+    const newRanges = [];
 
-    let pushRange = (startRow, endRow, startCol, endCol) => {
-      newRanges.push({startRow, endRow, startCol, endCol});
+    const pushRange = (startRow, endRow, startCol, endCol) => {
+      newRanges.push({ startRow, endRow, startCol, endCol });
     };
 
     arrayEach(ranges, (range) => {
@@ -344,26 +404,26 @@ class HiddenColumns extends BasePlugin {
   }
 
   /**
-   * Add the needed classes to the headers.
+   * Adds the needed classes to the headers.
    *
    * @private
-   * @param {Number} col
+   * @param {Number} column
    * @param {HTMLElement} TH
    */
-  onAfterGetColHeader(col, TH) {
-    if (this.isHidden(col)) {
+  onAfterGetColHeader(column, TH) {
+    if (this.isHidden(column)) {
       return;
     }
 
     let firstSectionHidden = true;
-    let i = col - 1;
+    let i = column - 1;
 
     do {
       if (!this.isHidden(i)) {
         firstSectionHidden = false;
         break;
       }
-      i--;
+      i -= 1;
     } while (i >= 0);
 
     if (firstSectionHidden) {
@@ -374,11 +434,11 @@ class HiddenColumns extends BasePlugin {
       return;
     }
 
-    if (this.isHidden(col - 1)) {
+    if (this.isHidden(column - 1)) {
       addClass(TH, 'afterHiddenColumn');
     }
 
-    if (this.isHidden(col + 1) && col > -1) {
+    if (this.isHidden(column + 1) && column > -1) {
       addClass(TH, 'beforeHiddenColumn');
     }
   }
@@ -396,14 +456,16 @@ class HiddenColumns extends BasePlugin {
 
     coords.col = 0;
 
-    let getNextColumn = (col) => {
-      let logicalCol = this.getLogicalColumnIndex(col);
+    const getNextColumn = (col) => {
+      let visualColumn = col;
+      const logicalCol = this.getLogicalColumnIndex(visualColumn);
 
       if (this.isHidden(logicalCol, true)) {
-        col = getNextColumn(++col);
+        visualColumn += 1;
+        visualColumn = getNextColumn(visualColumn);
       }
 
-      return col;
+      return visualColumn;
     };
 
     coords.col = getNextColumn(coords.col);
@@ -416,31 +478,34 @@ class HiddenColumns extends BasePlugin {
    * @param {Object} coords Object with `row` and `col` properties.
    */
   onBeforeSetRangeEnd(coords) {
-    let columnCount = this.hot.countCols();
+    const columnCount = this.hot.countCols();
 
-    let getNextColumn = (col) => {
-      let logicalCol = this.getLogicalColumnIndex(col);
+    const getNextColumn = (col) => {
+      let visualColumn = col;
+      const logicalCol = this.getLogicalColumnIndex(visualColumn);
 
       if (this.isHidden(logicalCol, true)) {
-        if (this.lastSelectedColumn > col || coords.col === columnCount - 1) {
-          if (col > 0) {
-            col = getNextColumn(--col);
+        if (this.lastSelectedColumn > visualColumn || coords.col === columnCount - 1) {
+          if (visualColumn > 0) {
+            visualColumn -= 1;
+            visualColumn = getNextColumn(visualColumn);
 
           } else {
             rangeEach(0, this.lastSelectedColumn, (i) => {
               if (!this.isHidden(i)) {
-                col = i;
+                visualColumn = i;
 
                 return false;
               }
             });
           }
         } else {
-          col = getNextColumn(++col);
+          visualColumn += 1;
+          visualColumn = getNextColumn(visualColumn);
         }
       }
 
-      return col;
+      return visualColumn;
     };
 
     coords.col = getNextColumn(coords.col);
@@ -463,26 +528,40 @@ class HiddenColumns extends BasePlugin {
     );
   }
 
+  /**
+   * `onAfterCreateCol` hook callback.
+   *
+   * @private
+   */
   onAfterCreateCol(index, amount) {
-    let tempHidden = [];
+    const tempHidden = [];
 
     arrayEach(this.hiddenColumns, (col) => {
-      if (col >= index) {
-        col += amount;
+      let visualColumn = col;
+
+      if (visualColumn >= index) {
+        visualColumn += amount;
       }
-      tempHidden.push(col);
+      tempHidden.push(visualColumn);
     });
     this.hiddenColumns = tempHidden;
   }
 
+  /**
+   * `onAfterRemoveCol` hook callback.
+   *
+   * @private
+   */
   onAfterRemoveCol(index, amount) {
-    let tempHidden = [];
+    const tempHidden = [];
 
     arrayEach(this.hiddenColumns, (col) => {
-      if (col >= index) {
-        col -= amount;
+      let visualColumn = col;
+
+      if (visualColumn >= index) {
+        visualColumn -= amount;
       }
-      tempHidden.push(col);
+      tempHidden.push(visualColumn);
     });
     this.hiddenColumns = tempHidden;
   }
@@ -493,7 +572,7 @@ class HiddenColumns extends BasePlugin {
    * @private
    */
   onAfterPluginsInitialized() {
-    let settings = this.hot.getSettings().hiddenColumns;
+    const settings = this.hot.getSettings().hiddenColumns;
 
     if (typeof settings === 'object') {
       this.settings = settings;
@@ -505,13 +584,13 @@ class HiddenColumns extends BasePlugin {
         this.hideColumns(settings.columns);
       }
       if (!settings.copyPasteEnabled) {
-        this.addHook('modifyCopyableRange', (ranges) => this.onModifyCopyableRange(ranges));
+        this.addHook('modifyCopyableRange', ranges => this.onModifyCopyableRange(ranges));
       }
     }
   }
 
   /**
-   * Destroy the plugin.
+   * Destroys the plugin instance.
    */
   destroy() {
     super.destroy();

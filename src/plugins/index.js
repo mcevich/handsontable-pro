@@ -3,6 +3,8 @@ import CollapsibleColumns from './collapsibleColumns/collapsibleColumns';
 import ColumnSummary from './columnSummary/columnSummary';
 import DropdownMenu from './dropdownMenu/dropdownMenu';
 import ExportFile from './exportFile/exportFile';
+// MultiColumnSorting must be initialized before Filters. Bug releated with "wrong listeners order" attached to 'modifyRow' and 'unmodifyRow' hooks.
+import MultiColumnSorting from './multiColumnSorting/multiColumnSorting';
 import Filters from './filters/filters';
 import Formulas from './formulas/formulas';
 import GanttChart from './ganttChart/ganttChart';
@@ -20,6 +22,7 @@ export {
   ColumnSummary,
   DropdownMenu,
   ExportFile,
+  MultiColumnSorting,
   Filters,
   Formulas,
   GanttChart,

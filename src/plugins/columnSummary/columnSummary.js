@@ -1,7 +1,6 @@
 import BasePlugin from 'handsontable/plugins/_base.js';
-import {deepClone, objectEach, hasOwnProperty} from 'handsontable/helpers/object';
-import {arrayEach} from 'handsontable/helpers/array';
-import {registerPlugin, getPlugin} from 'handsontable/plugins.js';
+import { objectEach } from 'handsontable/helpers/object';
+import { registerPlugin } from 'handsontable/plugins.js';
 import Endpoints from './endpoints';
 
 /**
@@ -10,7 +9,34 @@ import Endpoints from './endpoints';
  *
  * @description
  * Allows making pre-defined calculations on the cell values and display the results within Handsontable.
- * See the demo for more information.
+ * [See the demo for more information](https://docs.handsontable.com/pro/demo-summary-calculations.html).
+ *s
+ * @example
+ * const container = document.getElementById('example');
+ * const hot = new Handsontable(container, {
+ *   data: getData(),
+ *   colHeaders: true,
+ *   rowHeaders: true,
+ *   columnSummary: [
+ *     {
+ *       destinationRow: 4,
+ *       destinationColumn: 1,
+ *       type: 'min'
+ *     },
+ *     {
+ *       destinationRow: 0,
+ *       destinationColumn: 3,
+ *       reversedRowCoords: true,
+ *       type: 'max'
+ *     },
+ *     {
+ *       destinationRow: 4,
+ *       destinationColumn: 5,
+ *       type: 'sum',
+ *       forceNumeric: true
+ *     }
+ *   ]
+ * });
  */
 class ColumnSummary extends BasePlugin {
   constructor(hotInstance) {
@@ -18,13 +44,15 @@ class ColumnSummary extends BasePlugin {
     /**
      * The Endpoints class instance. Used to make all endpoint-related operations.
      *
+     * @private
      * @type {null|Endpoints}
      */
     this.endpoints = null;
   }
 
   /**
-   * Check if plugin is enabled.
+   * Checks if the plugin is enabled in the handsontable settings. This method is executed in {@link Hooks#beforeInit}
+   * hook and if it returns `true` than the {@link ColumnSummary#enablePlugin} method is called.
    *
    * @returns {Boolean}
    */
@@ -33,7 +61,7 @@ class ColumnSummary extends BasePlugin {
   }
 
   /**
-   * Enable plugin for this Handsontable instance.
+   * Enables the plugin functionality for this Handsontable instance.
    */
   enablePlugin() {
     if (this.enabled) {
@@ -62,7 +90,7 @@ class ColumnSummary extends BasePlugin {
   }
 
   /**
-   * Disable the plugin.
+   * Disables the plugin functionality for this Handsontable instance.
    */
   disablePlugin() {
     this.endpoints = null;
@@ -71,8 +99,9 @@ class ColumnSummary extends BasePlugin {
   }
 
   /**
-   * Do the math for a single endpoint.
+   * Calculates math for a single endpoint.
    *
+   * @private
    * @param {Object} endpoint Contains information about the endpoint.
    */
   calculate(endpoint) {
@@ -101,26 +130,26 @@ class ColumnSummary extends BasePlugin {
   }
 
   /**
-   * Calculate sum of the values contained in ranges provided in the plugin config.
+   * Calculates sum of the values contained in ranges provided in the plugin config.
    *
+   * @private
    * @param {Object} endpoint Contains the endpoint information.
    * @returns {Number} Sum for the selected range
    */
   calculateSum(endpoint) {
     let sum = 0;
 
-    for (let r in endpoint.ranges) {
-      if (hasOwnProperty(endpoint.ranges, r)) {
-        sum += this.getPartialSum(endpoint.ranges[r], endpoint.sourceColumn);
-      }
-    }
+    objectEach(endpoint.ranges, (range) => {
+      sum += this.getPartialSum(range, endpoint.sourceColumn);
+    });
 
     return sum;
   }
 
   /**
-   * Get partial sum of values from a single row range
+   * Returns partial sum of values from a single row range
    *
+   * @private
    * @param {Array} rowRange Range for the sum.
    * @param {Number} col Column index.
    * @returns {Number} The partial sum.
@@ -133,22 +162,23 @@ class ColumnSummary extends BasePlugin {
 
     do {
       cellValue = this.getCellValue(i, col) || 0;
-      let decimalPlaces = (((cellValue + '').split('.')[1] || []).length) || 1;
+      const decimalPlaces = (((`${cellValue}`).split('.')[1] || []).length) || 1;
       if (decimalPlaces > biggestDecimalPlacesCount) {
         biggestDecimalPlacesCount = decimalPlaces;
       }
 
       sum += cellValue || 0;
-      i--;
+      i -= 1;
     } while (i >= rowRange[0]);
 
     // Workaround for e.g. 802.2 + 1.1 = 803.3000000000001
-    return Math.round(sum * Math.pow(10, biggestDecimalPlacesCount)) / Math.pow(10, biggestDecimalPlacesCount);
+    return Math.round(sum * (10 ** biggestDecimalPlacesCount)) / (10 ** biggestDecimalPlacesCount);
   }
 
   /**
-   * Calculate the minimal value for the selected ranges
+   * Calculates the minimal value for the selected ranges
    *
+   * @private
    * @param {Object} endpoint Contains the endpoint information.
    * @param {String} type `'min'` or `'max'`.
    * @returns {Number} Min or Max value.
@@ -156,36 +186,34 @@ class ColumnSummary extends BasePlugin {
   calculateMinMax(endpoint, type) {
     let result = null;
 
-    for (let r in endpoint.ranges) {
-      if (hasOwnProperty(endpoint.ranges, r)) {
-        let partialResult = this.getPartialMinMax(endpoint.ranges[r], endpoint.sourceColumn, type);
+    objectEach(endpoint.ranges, (range) => {
+      const partialResult = this.getPartialMinMax(range, endpoint.sourceColumn, type);
 
-        if (result === null && partialResult !== null) {
-          result = partialResult;
-        }
+      if (result === null && partialResult !== null) {
+        result = partialResult;
+      }
 
-        if (partialResult !== null) {
-          switch (type) {
-            case 'min':
-              result = Math.min(result, partialResult);
-              break;
-            case 'max':
-              result = Math.max(result, partialResult);
-              break;
-            default:
-              break;
-          }
-
+      if (partialResult !== null) {
+        switch (type) {
+          case 'min':
+            result = Math.min(result, partialResult);
+            break;
+          case 'max':
+            result = Math.max(result, partialResult);
+            break;
+          default:
+            break;
         }
       }
-    }
+    });
 
     return result === null ? 'Not enough data' : result;
   }
 
   /**
-   * Get a local minimum of the provided sub-range
+   * Returns a local minimum of the provided sub-range
    *
+   * @private
    * @param {Array} rowRange Range for the calculation.
    * @param {Number} col Column index.
    * @param {String} type `'min'` or `'max'`
@@ -215,15 +243,16 @@ class ColumnSummary extends BasePlugin {
 
       }
 
-      i--;
+      i -= 1;
     } while (i >= rowRange[0]);
 
     return result;
   }
 
   /**
-   * Count empty cells in the provided row range.
+   * Counts empty cells in the provided row range.
    *
+   * @private
    * @param {Array} rowRange Row range for the calculation.
    * @param {Number} col Column index.
    * @returns {Number} Empty cells count.
@@ -237,64 +266,65 @@ class ColumnSummary extends BasePlugin {
       cellValue = this.getCellValue(i, col);
 
       if (!cellValue) {
-        counter++;
+        counter += 1;
       }
 
-      i--;
+      i -= 1;
     } while (i >= rowRange[0]);
 
     return counter;
   }
 
   /**
-   * Count non-empty cells in the provided row range.
+   * Counts non-empty cells in the provided row range.
    *
+   * @private
    * @param {Object} endpoint Contains the endpoint information.
    * @returns {Number} Entry count.
    */
   countEntries(endpoint) {
     let result = 0;
-    let ranges = endpoint.ranges;
+    const ranges = endpoint.ranges;
 
-    for (let r in ranges) {
-      if (hasOwnProperty(ranges, r)) {
-        let partial = ranges[r][1] === void 0 ? 1 : ranges[r][1] - ranges[r][0] + 1;
-        let emptyCount = this.countEmpty(ranges[r], endpoint.sourceColumn);
+    objectEach(ranges, (range) => {
+      const partial = range[1] === void 0 ? 1 : range[1] - range[0] + 1;
+      const emptyCount = this.countEmpty(range, endpoint.sourceColumn);
 
-        result += partial;
-        result -= emptyCount;
-      }
-    }
+      result += partial;
+      result -= emptyCount;
+    });
 
     return result;
   }
 
   /**
-   * Calculate the average value from the cells in the range.
+   * Calculates the average value from the cells in the range.
    *
+   * @private
    * @param {Object} endpoint Contains the endpoint information.
    * @returns {Number} Avarage value.
    */
   calculateAverage(endpoint) {
-    let sum = this.calculateSum(endpoint);
-    let entriesCount = this.countEntries(endpoint);
+    const sum = this.calculateSum(endpoint);
+    const entriesCount = this.countEntries(endpoint);
 
     return sum / entriesCount;
   }
 
   /**
-   * Gets a cell value, taking into consideration a basic validation.
+   * Returns a cell value, taking into consideration a basic validation.
    *
+   * @private
    * @param {Number} row Row index.
    * @param {Number} col Column index.
    * @returns {String} The cell value.
    */
   getCellValue(row, col) {
-    let visualRowIndex = this.endpoints.getVisualRowIndex(row);
-    let visualColumnIndex = this.endpoints.getVisualColumnIndex(col);
+    const visualRowIndex = this.endpoints.getVisualRowIndex(row);
+    const visualColumnIndex = this.endpoints.getVisualColumnIndex(col);
 
     let cellValue = this.hot.getSourceDataAtCell(row, col);
-    let cellClassName = this.hot.getCellMeta(visualRowIndex, visualColumnIndex).className || '';
+    const cellClassName = this.hot.getCellMeta(visualRowIndex, visualColumnIndex).className || '';
 
     if (cellClassName.indexOf('columnSummaryResult') > -1) {
       return null;
@@ -343,16 +373,17 @@ class ColumnSummary extends BasePlugin {
   /**
    * `beforeRowMove` hook callback.
    *
+   * @private
    * @param {Array} rows Array of logical rows to be moved.
-   * @param {Number} target Index of the destination row.
    */
-  onBeforeRowMove(rows, target) {
+  onBeforeRowMove(rows) {
     this.endpoints.resetSetupBeforeStructureAlteration('move_row', rows[0], rows.length, rows, this.pluginName);
   }
 
   /**
    * `afterRowMove` hook callback.
    *
+   * @private
    * @param {Array} rows Array of logical rows that were moved.
    * @param {Number} target Index of the destination row.
    */

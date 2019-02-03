@@ -1,7 +1,5 @@
-import {arrayEach} from 'handsontable/helpers/array';
-import {extend, clone} from 'handsontable/helpers/object';
-import {rangeEach} from 'handsontable/helpers/number';
-import {substitute} from 'handsontable/helpers/string';
+import { extend, clone } from 'handsontable/helpers/object';
+import { substitute } from 'handsontable/helpers/string';
 
 /**
  * @plugin ExportFile
@@ -19,6 +17,7 @@ class BaseType {
       fileExtension: 'txt',
       filename: 'Handsontable [YYYY]-[MM]-[DD]',
       encoding: 'utf-8',
+      bom: false,
       columnHeaders: false,
       rowHeaders: false,
       exportHiddenColumns: false,
@@ -51,15 +50,15 @@ class BaseType {
    */
   _mergeOptions(options) {
     let _options = clone(this.constructor.DEFAULT_OPTIONS);
-    let date = new Date();
+    const date = new Date();
 
     _options = extend(clone(BaseType.DEFAULT_OPTIONS), _options);
     _options = extend(_options, options);
 
     _options.filename = substitute(_options.filename, {
       YYYY: date.getFullYear(),
-      MM: ((date.getMonth() + 1) + '').padStart(2, '0'),
-      DD: (date.getDate() + '').padStart(2, '0'),
+      MM: (`${date.getMonth() + 1}`).padStart(2, '0'),
+      DD: (`${date.getDate()}`).padStart(2, '0'),
     });
 
     return _options;
